@@ -52,9 +52,90 @@ export function WalletDashboard() {
   const [circleWalletAddresses, setCircleWalletAddresses] = useState<string[]>([]);
   const [isCheckingCircleWallet, setIsCheckingCircleWallet] = useState(true);
 
+  const [hasSCAWallet, setHasSCAWallet] = useState(false);
+  const [isCheckingSCAWallet, setIsCheckingSCAWallet] = useState(true);
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  useEffect(() => {
+    const initializeWallets = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Initialize EOA wallets for Gateway signing
+        try {
+          await fetch("/api/gateway/init-eoa-wallets", { method: "POST" });
+        } catch (error) {
+          console.error("Failed to initialize EOA wallets:", error);
+        }
+
+        // Check for Circle Wallet (exclude EOA signer wallets from UI)
+        const { data, error } = await supabase
+          .from("wallets")
+          .select("wallet_address, type")
+          .eq("user_id", user.id)
+          .neq("type", "gateway_signer"); // Exclude EOA signer wallets
+
+        if (data && data.length > 0 && !error) {
+          setHasCircleWallet(true);
+          setCircleWalletAddresses(data.map(w => w.wallet_address));
+        } else {
+          setHasCircleWallet(false);
+          setCircleWalletAddresses([]);
+        }
+      }
+      setIsCheckingCircleWallet(false);
+    };
+    initializeWallets();
+  }, []);
+
+  useEffect(() => {
+    const checkSCAWallet = async () => {
+      try {
+        const response = await fetch("/api/wallet/check-sca-wallet", {
+          method: "GET",
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to check SCA wallet");
+        }
+
+        const data = await response.json();
+        setHasSCAWallet(data.hasSCAWallet);
+      } catch (error) {
+        console.error("Error checking SCA wallet:", error);
+      } finally {
+        setIsCheckingSCAWallet(false);
+      }
+    };
+
+    checkSCAWallet();
+  }, []);
+
+  const createSCAWallet = async () => {
+    try {
+      const response = await fetch("/api/wallet/create-sca-wallet", {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create SCA wallet");
+      }
+
+      toast.success("SCA Wallet Created", {
+        description: "Your Smart Contract Account wallet has been successfully created.",
+      });
+
+      // Refresh the SCA wallet check
+      setHasSCAWallet(true);
+    } catch (error) {
+      toast.error("Wallet Creation Failed", {
+        description: error.message || "An error occurred while creating the wallet.",
+      });
+    }
+  };
 
   useEffect(() => {
     const initializeWallets = async () => {
