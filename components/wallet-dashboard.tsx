@@ -42,6 +42,7 @@ import { Separator } from "@/components/ui/separator"
 import { TransactionHistory } from "@/components/transaction-history";
 import { toast } from "sonner";
 import { Copy, RefreshCw } from "lucide-react";
+import { ancient8 } from "viem/chains";
 
 type SupportedChain = "arcTestnet" | "baseSepolia" | "avalancheFuji";
 
@@ -130,7 +131,7 @@ export function WalletDashboard() {
 
       // Refresh the SCA wallet check
       setHasSCAWallet(true);
-    } catch (error) {
+    } catch (error: any) {
       toast.error("Wallet Creation Failed", {
         description: error.message || "An error occurred while creating the wallet.",
       });
